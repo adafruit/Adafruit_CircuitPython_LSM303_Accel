@@ -1,4 +1,4 @@
-""" Display both accelerometer and magnetometer data once per second """
+""" Display accelerometer data once per second """
 
 import time
 import board
