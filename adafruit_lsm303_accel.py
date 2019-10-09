@@ -52,6 +52,10 @@ except ImportError:
     import ustruct as struct
 from micropython import const
 from adafruit_bus_device.i2c_device import I2CDevice
+from adafruit_register.i2c_struct import UnaryStruct
+from adafruit_register.i2c_bit import RWBit
+from adafruit_register.i2c_bits import RWBits
+
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_LSM303_Accel.git"
@@ -92,7 +96,9 @@ _REG_ACCEL_CLICK_THS_A     = const(0x3A)
 _REG_ACCEL_TIME_LIMIT_A    = const(0x3B)
 _REG_ACCEL_TIME_LATENCY_A  = const(0x3C)
 _REG_ACCEL_TIME_WINDOW_A   = const(0x3D)
-
+_REG_ACCEL_ACT_THS_A       = const(0x3E)
+_REG_ACCEL_ACT_DUR_A       = const(0x3F)
+_REG_ACCEL_WHO_AM_I        = const(0x0F)
 
 # Conversion constants
 _LSM303ACCEL_MG_LSB        = 16704.0
@@ -105,10 +111,23 @@ class LSM303_Accel:
     # Class-level buffer for reading and writing data with the sensor.
     # This reduces memory allocations but means the code is not re-entrant or
     # thread safe!
+    _chip_id = UnaryStruct(_REG_ACCEL_WHO_AM_I, "B")
+    _int2_int1_enable = RWBit(_REG_ACCEL_CTRL_REG6_A, 6, 1)
+    _int2_int2_enable = RWBit(_REG_ACCEL_CTRL_REG6_A, 5, 1)
+
+    _int2_activity_enable = RWBit(_REG_ACCEL_CTRL_REG6_A, 3, 1)
+    _int_pin_active_low = RWBit(_REG_ACCEL_CTRL_REG6_A, 1, 1)
+
+    _act_threshold = UnaryStruct(_REG_ACCEL_ACT_THS_A, "B")
+    _act_duration = UnaryStruct(_REG_ACCEL_ACT_DUR_A, "B")
+
+    _data_rate = RWBits(4, _REG_ACCEL_CTRL_REG1_A, 4, 1)
+
     _BUFFER = bytearray(6)
 
     def __init__(self, i2c):
         self._accel_device = I2CDevice(i2c, _ADDRESS_ACCEL)
+        self.i2c_device = self._accel_device
         self._write_u8(self._accel_device, _REG_ACCEL_CTRL_REG1_A, 0x27)  # Enable the accelerometer
 
     @property
