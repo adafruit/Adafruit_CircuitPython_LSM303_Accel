@@ -54,7 +54,7 @@ from micropython import const
 from adafruit_bus_device.i2c_device import I2CDevice
 
 __version__ = "0.0.0-auto.0"
-__repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_LSM303.git"
+__repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_LSM303_Accel.git"
 
 # pylint: disable=bad-whitespace
 _ADDRESS_ACCEL             = const(0x19)  # (0x32 >> 1)       // 0011001x
@@ -98,8 +98,6 @@ _REG_ACCEL_TIME_WINDOW_A   = const(0x3D)
 _LSM303ACCEL_MG_LSB        = 16704.0
 _GRAVITY_STANDARD          = 9.80665      # Earth's gravity in m/s^2
 # pylint: enable=bad-whitespace
-
-
 
 class LSM303_Accel:
     """Driver for the LSM303's accelerometer."""
