@@ -55,6 +55,7 @@ from adafruit_bus_device.i2c_device import I2CDevice
 from adafruit_register.i2c_struct import UnaryStruct
 from adafruit_register.i2c_bit import RWBit
 from adafruit_register.i2c_bits import RWBits
+from adafruit_register.i2c_struct_array import StructArray
 
 
 __version__ = "0.0.0-auto.0"
@@ -101,8 +102,35 @@ _REG_ACCEL_ACT_DUR_A       = const(0x3F)
 _REG_ACCEL_WHO_AM_I        = const(0x0F)
 
 # Conversion constants
-_LSM303ACCEL_MG_LSB        = 16704.0
+_LSM303ACCEL_MG_LSB        = 16704.0 # magic!
 _GRAVITY_STANDARD          = 9.80665      # Earth's gravity in m/s^2
+_SMOLLER_GRAVITY           = 0.00980665
+
+class Rate:
+    RATE_SHUTDOWN = const(0)
+    RATE_1_HZ     = const(1)
+    RATE_10_HZ    = const(2)
+    RATE_25_HZ    = const(3)
+    RATE_50_HZ    = const(4)
+    RATE_100_HZ   = const(5)
+    RATE_200_HZ   = const(6)
+    RATE_400_HZ   = const(7)
+    RATE_1620_HZ  = const(8)
+    RATE_1344_HZ  = const(9)
+
+class Mode:
+    """Options for `mode`"""
+    MODE_NORMAL          = const(0)
+    MODE_HIGH_RESOLUTION = const(1)
+    MODE_LOW_POWER       = const(2)
+
+class Range:
+    """Options for `range`"""
+    RANGE_2G = const(0)
+    RANGE_4G = const(1)
+    RANGE_8G = const(2)
+    RANGE_16G = const(3)
+
 # pylint: enable=bad-whitespace
 
 class LSM303_Accel:
@@ -122,13 +150,25 @@ class LSM303_Accel:
     _act_duration = UnaryStruct(_REG_ACCEL_ACT_DUR_A, "B")
 
     _data_rate = RWBits(4, _REG_ACCEL_CTRL_REG1_A, 4, 1)
+    _enable_xyz = RWBits(3, _REG_ACCEL_CTRL_REG1_A, 0, 1)
+    _raw_accel_data = StructArray(_REG_ACCEL_OUT_X_L_A, "<h", 3)
+
+    _low_power = RWBit(_REG_ACCEL_CTRL_REG1_A, 3, 1)
+    _high_resolution = RWBit(_REG_ACCEL_CTRL_REG4_A, 3, 1)
+
+
+    _range = RWBits(2, _REG_ACCEL_CTRL_REG4_A, 4, 1)
 
     _BUFFER = bytearray(6)
 
     def __init__(self, i2c):
         self._accel_device = I2CDevice(i2c, _ADDRESS_ACCEL)
         self.i2c_device = self._accel_device
-        self._write_u8(self._accel_device, _REG_ACCEL_CTRL_REG1_A, 0x27)  # Enable the accelerometer
+        #self._write_u8(self._accel_device, _REG_ACCEL_CTRL_REG1_A, 0x27)  # Enable the accelerometer
+        self._data_rate = 2
+        self._enable_xyz = 0b111
+        self._cached_mode = 0
+        self._cached_range = 0
 
     @property
     def raw_acceleration(self):
@@ -143,9 +183,101 @@ class LSM303_Accel:
         """The processed accelerometer sensor values.
         A 3-tuple of X, Y, Z axis values in meters per second squared that are signed floats.
         """
-        raw_accel_data = self.raw_acceleration
-        return tuple([n / _LSM303ACCEL_MG_LSB * _GRAVITY_STANDARD for n in raw_accel_data])
 
+        raw_accel_data = self.raw_acceleration
+
+        x = self._scale_data(raw_accel_data[0])
+        y = self._scale_data(raw_accel_data[1])
+        z = self._scale_data(raw_accel_data[2])
+
+        return (x, y, z)
+
+    def _scale_data(self, raw_measurement):
+        lsb, shift = self._lsb_shift()
+
+        return(raw_measurement >> shift) * lsb * _SMOLLER_GRAVITY
+
+    def _lsb_shift(self):
+        # the bit depth of the data depends on the mode, and the lsb value
+        # depends on the mode and range
+        lsb = -1 # the default, normal mode @ 2G
+
+        if self._cached_mode is Mode.MODE_HIGH_RESOLUTION: # 12-bit
+            shift = 4
+            if self._cached_range is Range.RANGE_2G:
+                lsb = 0.98
+            elif self._cached_range is Range.RANGE_4G:
+                lsb = 1.95
+            elif self._cached_range is Range.RANGE_8G:
+                lsb = 3.9
+            elif self._cached_range is Range.RANGE_16G:
+                lsb = 11.72
+        elif self._cached_mode is Mode.MODE_NORMAL: # 10-bit
+            shift = 6
+            if self._cached_range is Range.RANGE_2G:
+                lsb = 3.9
+            elif self._cached_range is Range.RANGE_4G:
+                lsb = 7.82
+            elif self._cached_range is Range.RANGE_8G:
+                lsb = 15.63
+            elif self._cached_range is Range.RANGE_16G:
+                lsb = 46.9
+
+
+        elif self._cached_mode is Mode.MODE_LOW_POWER: # 8-bit
+            shift = 8
+            if self._cached_range is Range.RANGE_2G:
+                lsb = 15.63
+            elif self._cached_range is Range.RANGE_4G:
+                lsb = 31.26
+            elif self._cached_range is Range.RANGE_8G:
+                lsb = 62.52
+            elif self._cached_range is Range.RANGE_16G:
+                lsb = 187.58
+
+        if lsb is -1:
+            raise AttributeError("'impossible' range or mode detected: range: %d mode: %d"%
+                (self._cached_range, self._cached_mode))
+        return (lsb, shift)
+
+    @property
+    def data_rate(self):
+        """Select the rate at which the sensor takes measurements. Must be a `Rate`"""
+        return self._data_rate
+
+    @data_rate.setter
+    def data_rate(self, value):
+        if value < 0 or value > 9:
+            raise AttributeError("data_rate must be a `Rate`")
+
+        self._data_rate = value
+
+    @property
+    def range(self):
+        """Adjusts the range of values that the sensor can measure, from +- 2G to +-16G
+        Note that larger ranges will be less accurate. Must be a `Range`"""
+        return self._cached_range
+
+    @range.setter
+    def range(self, value):
+        if value < 0 or value >3:
+            raise AttributeError("range must be a `Range`")
+        self._range = value
+        self._cached_range = value
+
+    @property
+    def mode(self):
+        """Sets the power mode of the sensor. The mode must be a `Mode`. Note that the
+        mode and range will both affect the accuracy of the sensor"""
+        return self._cached_mode
+
+    @mode.setter
+    def mode(self, value):
+        if value < 0 or value > 2:
+            raise AttributeError("mode must be a `Mode`")
+        self._high_resolution = value & 0b01
+        self._low_power = (value & 0b10) >>1
+        self._cached_mode = value
 
     def _read_u8(self, device, address):
         with device as i2c:
