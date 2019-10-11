@@ -53,10 +53,9 @@ except ImportError:
 from micropython import const
 from adafruit_bus_device.i2c_device import I2CDevice
 from adafruit_register.i2c_struct import UnaryStruct
-from adafruit_register.i2c_bit import RWBit
+from adafruit_register.i2c_bit import RWBit, ROBit
 from adafruit_register.i2c_bits import RWBits
 from adafruit_register.i2c_struct_array import StructArray
-
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_LSM303_Accel.git"
@@ -67,6 +66,8 @@ _ADDRESS_MAG               = const(0x1E)  # (0x3C >> 1)       // 0011110x
 _ID                        = const(0xD4)  # (0b11010100)
 
 # Accelerometer registers
+
+_REG_ACCEL_WHO_AM_I        = const(0x0F)
 _REG_ACCEL_CTRL_REG1_A     = const(0x20)
 _REG_ACCEL_CTRL_REG2_A     = const(0x21)
 _REG_ACCEL_CTRL_REG3_A     = const(0x22)
@@ -99,7 +100,6 @@ _REG_ACCEL_TIME_LATENCY_A  = const(0x3C)
 _REG_ACCEL_TIME_WINDOW_A   = const(0x3D)
 _REG_ACCEL_ACT_THS_A       = const(0x3E)
 _REG_ACCEL_ACT_DUR_A       = const(0x3F)
-_REG_ACCEL_WHO_AM_I        = const(0x0F)
 
 # Conversion constants
 _LSM303ACCEL_MG_LSB        = 16704.0 # magic!
@@ -140,35 +140,123 @@ class LSM303_Accel:
     # This reduces memory allocations but means the code is not re-entrant or
     # thread safe!
     _chip_id = UnaryStruct(_REG_ACCEL_WHO_AM_I, "B")
-    _int2_int1_enable = RWBit(_REG_ACCEL_CTRL_REG6_A, 6, 1)
-    _int2_int2_enable = RWBit(_REG_ACCEL_CTRL_REG6_A, 5, 1)
+    _int2_int1_enable = RWBit(_REG_ACCEL_CTRL_REG6_A, 6)
+    _int2_int2_enable = RWBit(_REG_ACCEL_CTRL_REG6_A, 5)
+    _int1_latching = RWBit(_REG_ACCEL_CTRL_REG5_A, 3)
+    _int2_latching = RWBit(_REG_ACCEL_CTRL_REG5_A, 1)
+    _bdu = RWBit(_REG_ACCEL_CTRL_REG4_A, 7)
 
-    _int2_activity_enable = RWBit(_REG_ACCEL_CTRL_REG6_A, 3, 1)
-    _int_pin_active_low = RWBit(_REG_ACCEL_CTRL_REG6_A, 1, 1)
+    _int2_activity_enable = RWBit(_REG_ACCEL_CTRL_REG6_A, 3)
+    _int_pin_active_low = RWBit(_REG_ACCEL_CTRL_REG6_A, 1)
 
     _act_threshold = UnaryStruct(_REG_ACCEL_ACT_THS_A, "B")
     _act_duration = UnaryStruct(_REG_ACCEL_ACT_DUR_A, "B")
 
-    _data_rate = RWBits(4, _REG_ACCEL_CTRL_REG1_A, 4, 1)
-    _enable_xyz = RWBits(3, _REG_ACCEL_CTRL_REG1_A, 0, 1)
+    _data_rate = RWBits(4, _REG_ACCEL_CTRL_REG1_A, 4)
+    _enable_xyz = RWBits(3, _REG_ACCEL_CTRL_REG1_A, 0)
     _raw_accel_data = StructArray(_REG_ACCEL_OUT_X_L_A, "<h", 3)
 
-    _low_power = RWBit(_REG_ACCEL_CTRL_REG1_A, 3, 1)
-    _high_resolution = RWBit(_REG_ACCEL_CTRL_REG4_A, 3, 1)
+    _low_power = RWBit(_REG_ACCEL_CTRL_REG1_A, 3)
+    _high_resolution = RWBit(_REG_ACCEL_CTRL_REG4_A, 3)
+
+    _range = RWBits(2, _REG_ACCEL_CTRL_REG4_A, 4)
+
+    # filter _REG_ACCEL_CTRL_REG2_A
+    # CTRL_REG5_A boot (7)
+    _int1_src = UnaryStruct(_REG_ACCEL_INT1_SOURCE_A, "B")
+    _tap_src = UnaryStruct(_REG_ACCEL_CLICK_SRC_A, "B")
+
+    _tap_interrupt_enable = RWBit(_REG_ACCEL_CTRL_REG3_A, 7, 1)
+    _tap_config = UnaryStruct(_REG_ACCEL_CLICK_CFG_A, "B")
+    _tap_interrupt_active = ROBit(_REG_ACCEL_CLICK_SRC_A, 6, 1)
+    _tap_threshold = UnaryStruct(_REG_ACCEL_CLICK_THS_A, "B")
+    _tap_time_limit = UnaryStruct(_REG_ACCEL_TIME_LIMIT_A, "B")
+    _tap_time_latency = UnaryStruct(_REG_ACCEL_TIME_LATENCY_A, "B")
+    _tap_time_window = UnaryStruct(_REG_ACCEL_TIME_WINDOW_A, "B")
 
 
-    _range = RWBits(2, _REG_ACCEL_CTRL_REG4_A, 4, 1)
 
     _BUFFER = bytearray(6)
-
     def __init__(self, i2c):
         self._accel_device = I2CDevice(i2c, _ADDRESS_ACCEL)
         self.i2c_device = self._accel_device
         #self._write_u8(self._accel_device, _REG_ACCEL_CTRL_REG1_A, 0x27)  # Enable the accelerometer
         self._data_rate = 2
         self._enable_xyz = 0b111
+        self._int1_latching = True
+        self._int2_latching = True
+        self._bdu = True
+
+        # self._write_register_byte(_REG_CTRL5, 0x80)
+        # time.sleep(0.01)  # takes 5ms
         self._cached_mode = 0
         self._cached_range = 0
+
+    def set_tap(self, tap, threshold, *,
+                time_limit=10, time_latency=20, time_window=255, tap_cfg=None):
+        """
+        The tap detection parameters.
+        .. note:: Tap related registers are called ``CLICK_`` in the datasheet.
+        :param int tap: 0 to disable tap detection, 1 to detect only single
+                        taps, and 2 to detect only double taps.
+        :param int threshold: A threshold for the tap detection.  The higher the value
+                              the less sensitive the detection.  This changes based on
+                              the accelerometer range.  Good values are 5-10 for 16G,
+                              10-20 for 8G, 20-40 for 4G, and 40-80 for 2G.
+        :param int time_limit: TIME_LIMIT register value (default 10).
+        :param int time_latency: TIME_LATENCY register value (default 20).
+        :param int time_window: TIME_WINDOW register value (default 255).
+        :param int click_cfg: CLICK_CFG register value.
+        """
+        if (tap < 0 or tap > 2) and tap_cfg is None:
+            raise ValueError('Tap must be 0 (disabled), 1 (single tap), or 2 (double tap)!')
+        if threshold > 127 or threshold < 0:
+            raise ValueError('Threshold out of range (0-127)')
+
+
+        if tap == 0 and tap_cfg is None:
+            # Disable click interrupt.
+            self._tap_interrupt_enable = False
+            self._tap_config = 0
+            return
+
+        self._tap_interrupt_enable = True
+
+        if tap_cfg is None:
+            if tap == 1:
+                tap_cfg = 0x15  # Turn on all axes & singletap.
+            if tap == 2:
+                tap_cfg = 0x2A  # Turn on all axes & doubletap.
+        # Or, if a custom tap configuration register value specified, use it.
+        self._tap_config = tap_cfg
+
+        self._tap_threshold = threshold # why and?
+        self._tap_time_limit = time_limit
+        self._tap_time_latency = time_latency
+        self._tap_time_window = time_window
+
+    @property
+    def tapped(self):
+        """
+        True if a tap was detected recently. Whether its a single tap or double tap is
+        determined by the tap param on ``set_tap``. ``tapped`` may be True over
+        multiple reads even if only a single tap or single double tap occurred if the
+        interrupt (int) pin is not specified.
+        The following example uses ``i2c`` and specifies the interrupt pin:
+        .. code-block:: python
+            import adafruit_lis3dh
+            import digitalio
+            i2c = busio.I2C(board.SCL, board.SDA)
+            int1 = digitalio.DigitalInOut(board.D11) # pin connected to interrupt
+            lis3dh = adafruit_lis3dh.LIS3DH_I2C(i2c, int1=int1)
+            lis3dh.range = adafruit_lis3dh.RANGE_8_G
+        """
+        tap_src = self._tap_src
+        # print("tap_src: %s"%bin(tap_src))
+        # print("int1_src: %s"%bin(self._int1_src))
+        # if tap_src & 0b1000000 > 0:
+        #     print("TAPPED!")
+        return tap_src & 0b1000000 > 0
 
     @property
     def raw_acceleration(self):
