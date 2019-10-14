@@ -100,13 +100,14 @@ _REG_ACCEL_TIME_LATENCY_A  = const(0x3C)
 _REG_ACCEL_TIME_WINDOW_A   = const(0x3D)
 _REG_ACCEL_ACT_THS_A       = const(0x3E)
 _REG_ACCEL_ACT_DUR_A       = const(0x3F)
-
+# note:: Tap related registers are called ``CLICK_`` in the datasheet
 # Conversion constants
 _LSM303ACCEL_MG_LSB        = 16704.0 # magic!
 _GRAVITY_STANDARD          = 9.80665      # Earth's gravity in m/s^2
 _SMOLLER_GRAVITY           = 0.00980665
-
+#pylint:disable=too-few-public-methods
 class Rate:
+    """Options for `data_rate`"""
     RATE_SHUTDOWN = const(0)
     RATE_1_HZ     = const(1)
     RATE_10_HZ    = const(2)
@@ -131,9 +132,9 @@ class Range:
     RANGE_8G = const(2)
     RANGE_16G = const(3)
 
-# pylint: enable=bad-whitespace
+# pylint: enable=bad-whitespace,too-few-public-methods
 
-class LSM303_Accel:
+class LSM303_Accel: #pylint:disable=too-many-instance-attributes
     """Driver for the LSM303's accelerometer."""
 
     # Class-level buffer for reading and writing data with the sensor.
@@ -151,7 +152,22 @@ class LSM303_Accel:
 
     _act_threshold = UnaryStruct(_REG_ACCEL_ACT_THS_A, "B")
     _act_duration = UnaryStruct(_REG_ACCEL_ACT_DUR_A, "B")
+    """
+    .. code-block:: python
 
+        import board
+        i2c = board.I2C()
+
+        import adafruit_lsm303_accel
+        accel = adafruit_lsm303_accel.LSM303_Accel(i2c)
+
+        accel._act_threshold = 20
+        accel._act_duration = 1
+        accel._int2_activity_enable = True
+
+        # toggle pins, defaults to False
+        accel._int_pin_active_low = True
+    """
     _data_rate = RWBits(4, _REG_ACCEL_CTRL_REG1_A, 4)
     _enable_xyz = RWBits(3, _REG_ACCEL_CTRL_REG1_A, 0)
     _raw_accel_data = StructArray(_REG_ACCEL_OUT_X_L_A, "<h", 3)
@@ -161,8 +177,6 @@ class LSM303_Accel:
 
     _range = RWBits(2, _REG_ACCEL_CTRL_REG4_A, 4)
 
-    # filter _REG_ACCEL_CTRL_REG2_A
-    # CTRL_REG5_A boot (7)
     _int1_src = UnaryStruct(_REG_ACCEL_INT1_SOURCE_A, "B")
     _tap_src = UnaryStruct(_REG_ACCEL_CLICK_SRC_A, "B")
 
@@ -174,13 +188,10 @@ class LSM303_Accel:
     _tap_time_latency = UnaryStruct(_REG_ACCEL_TIME_LATENCY_A, "B")
     _tap_time_window = UnaryStruct(_REG_ACCEL_TIME_WINDOW_A, "B")
 
-
-
     _BUFFER = bytearray(6)
     def __init__(self, i2c):
         self._accel_device = I2CDevice(i2c, _ADDRESS_ACCEL)
         self.i2c_device = self._accel_device
-        #self._write_u8(self._accel_device, _REG_ACCEL_CTRL_REG1_A, 0x27)  # Enable the accelerometer
         self._data_rate = 2
         self._enable_xyz = 0b111
         self._int1_latching = True
@@ -196,18 +207,19 @@ class LSM303_Accel:
                 time_limit=10, time_latency=20, time_window=255, tap_cfg=None):
         """
         The tap detection parameters.
-        .. note:: Tap related registers are called ``CLICK_`` in the datasheet.
-        :param int tap: 0 to disable tap detection, 1 to detect only single
-                        taps, and 2 to detect only double taps.
-        :param int threshold: A threshold for the tap detection.  The higher the value
-                              the less sensitive the detection.  This changes based on
-                              the accelerometer range.  Good values are 5-10 for 16G,
-                              10-20 for 8G, 20-40 for 4G, and 40-80 for 2G.
+
+        :param int tap: 0 to disable tap detection, 1 to detect only single taps, and 2 to detect \
+            only double taps.
+        :param int threshold: A threshold for the tap detection.  The higher the value the less\
+            sensitive the detection. This changes based on the accelerometer range.  Good values\
+            are 5-10 for 16G, 10-20 for 8G, 20-40 for 4G, and 40-80 for 2G.
         :param int time_limit: TIME_LIMIT register value (default 10).
         :param int time_latency: TIME_LATENCY register value (default 20).
         :param int time_window: TIME_WINDOW register value (default 255).
         :param int click_cfg: CLICK_CFG register value.
+
         """
+
         if (tap < 0 or tap > 2) and tap_cfg is None:
             raise ValueError('Tap must be 0 (disabled), 1 (single tap), or 2 (double tap)!')
         if threshold > 127 or threshold < 0:
@@ -240,39 +252,23 @@ class LSM303_Accel:
         """
         True if a tap was detected recently. Whether its a single tap or double tap is
         determined by the tap param on ``set_tap``. ``tapped`` may be True over
-        multiple reads even if only a single tap or single double tap occurred if the
-        interrupt (int) pin is not specified.
-        The following example uses ``i2c`` and specifies the interrupt pin:
-        .. code-block:: python
-            import adafruit_lis3dh
-            import digitalio
-            i2c = busio.I2C(board.SCL, board.SDA)
-            int1 = digitalio.DigitalInOut(board.D11) # pin connected to interrupt
-            lis3dh = adafruit_lis3dh.LIS3DH_I2C(i2c, int1=int1)
-            lis3dh.range = adafruit_lis3dh.RANGE_8_G
+        multiple reads even if only a single tap or single double tap occurred.
         """
         tap_src = self._tap_src
-        # print("tap_src: %s"%bin(tap_src))
-        # print("int1_src: %s"%bin(self._int1_src))
-        # if tap_src & 0b1000000 > 0:
-        #     print("TAPPED!")
         return tap_src & 0b1000000 > 0
 
     @property
-    def raw_acceleration(self):
-        """The raw accelerometer sensor values.
-        A 3-tuple of X, Y, Z axis values that are 16-bit signed integers.
-        """
+    def _raw_acceleration(self):
         self._read_bytes(self._accel_device, _REG_ACCEL_OUT_X_L_A | 0x80, 6, self._BUFFER)
         return struct.unpack_from('<hhh', self._BUFFER[0:6])
 
     @property
     def acceleration(self):
-        """The processed accelerometer sensor values.
-        A 3-tuple of X, Y, Z axis values in meters per second squared that are signed floats.
+        """The measured accelerometer sensor values.
+        A 3-tuple of X, Y, Z axis values in m/s^2 squared that are signed floats.
         """
 
-        raw_accel_data = self.raw_acceleration
+        raw_accel_data = self._raw_acceleration
 
         x = self._scale_data(raw_accel_data[0])
         y = self._scale_data(raw_accel_data[1])
@@ -285,7 +281,7 @@ class LSM303_Accel:
 
         return(raw_measurement >> shift) * lsb * _SMOLLER_GRAVITY
 
-    def _lsb_shift(self):
+    def _lsb_shift(self): #pylint:disable=too-many-branches
         # the bit depth of the data depends on the mode, and the lsb value
         # depends on the mode and range
         lsb = -1 # the default, normal mode @ 2G
@@ -325,7 +321,7 @@ class LSM303_Accel:
 
         if lsb is -1:
             raise AttributeError("'impossible' range or mode detected: range: %d mode: %d"%
-                (self._cached_range, self._cached_mode))
+                                 (self._cached_range, self._cached_mode))
         return (lsb, shift)
 
     @property
@@ -348,7 +344,7 @@ class LSM303_Accel:
 
     @range.setter
     def range(self, value):
-        if value < 0 or value >3:
+        if value < 0 or value > 3:
             raise AttributeError("range must be a `Range`")
         self._range = value
         self._cached_range = value

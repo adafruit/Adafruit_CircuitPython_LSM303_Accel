@@ -10,3 +10,5 @@ bundles
 .eggs
 dist
 **/*.egg-info
+.vscode/
+
