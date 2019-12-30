@@ -10,8 +10,8 @@ Introduction
     :target: https://discord.gg/nBQh6qu
     :alt: Discord
 
-.. image:: https://travis-ci.com/adafruit/Adafruit_CircuitPython_LSM303_Accel.svg?branch=master
-    :target: https://travis-ci.com/adafruit/Adafruit_CircuitPython_LSM303_Accel
+.. image:: https://github.com/adafruit/Adafruit_CircuitPython_LSM303_Accel/workflows/Build%20CI/badge.svg
+    :target: https://github.com/adafruit/Adafruit_CircuitPython_LSM303_Accel/actions/
     :alt: Build Status
 
 Adafruit CircuitPython module for the LSM303's accelerometer
