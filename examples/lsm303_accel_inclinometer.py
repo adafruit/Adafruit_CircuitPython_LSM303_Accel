@@ -1,10 +1,11 @@
 """ Display inclination data five times per second """
 
 import time
+from math import atan2, degrees
 import board
 import busio
 import adafruit_lsm303_accel
-from math import atan2, degrees
+
 
 i2c = busio.I2C(board.SCL, board.SDA)
 sensor = adafruit_lsm303_accel.LSM303_Accel(i2c)
