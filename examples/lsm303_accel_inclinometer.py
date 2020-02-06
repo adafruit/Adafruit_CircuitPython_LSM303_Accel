@@ -12,27 +12,18 @@ sensor = adafruit_lsm303_accel.LSM303_Accel(i2c)
 
 
 def vector_2_degrees(x, y):
-    radians = atan2(y, x)
-    degrees_calc = degrees(radians)
-    if degrees_calc < 0:
-        degrees_calc = 360 + degrees_calc
-    return degrees_calc
+    angle = degrees(atan2(y, x))
+    if angle < 0:
+        angle += 360
+    return angle
 
 
 def get_inclination(_sensor):
-    return get_inclination_respect_x(_sensor), get_inclination_respect_y(_sensor)
-
-
-def get_inclination_respect_x(_sensor):
-    accel_axis_data = _sensor.acceleration
-    return vector_2_degrees(accel_axis_data[0], accel_axis_data[2])
-
-
-def get_inclination_respect_y(_sensor):
-    accel_axis_data = _sensor.acceleration
-    return vector_2_degrees(accel_axis_data[1], accel_axis_data[2])
+    x, y, z = _sensor.acceleration
+    return vector_2_degrees(x, z), vector_2_degrees(y, z)
 
 
 while True:
-    print("inclination: (%s, %s)" % (get_inclination(sensor)))
+    inclination = get_inclination(sensor)
+    print("XZ angle = {:6.2f}deg   YZ angle = {:6.2f}deg".format(inclination[0],inclination[1]))
     time.sleep(0.2)
