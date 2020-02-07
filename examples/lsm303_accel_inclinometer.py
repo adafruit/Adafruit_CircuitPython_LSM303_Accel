@@ -24,6 +24,6 @@ def get_inclination(_sensor):
 
 
 while True:
-    inclination = get_inclination(sensor)
-    print("XZ angle = {:6.2f}deg   YZ angle = {:6.2f}deg".format(inclination[0],inclination[1]))
+    angle_xz, angle_yz = get_inclination(sensor)
+    print("XZ angle = {:6.2f}deg   YZ angle = {:6.2f}deg".format(angle_xz, angle_yz))
     time.sleep(0.2)
