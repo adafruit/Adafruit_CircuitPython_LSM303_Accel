@@ -60,7 +60,6 @@ from adafruit_register.i2c_struct_array import StructArray
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_LSM303_Accel.git"
 
-# pylint: disable=bad-whitespace
 _ADDRESS_ACCEL = const(0x19)  # (0x32 >> 1)       // 0011001x
 _ADDRESS_MAG = const(0x1E)  # (0x3C >> 1)       // 0011110x
 _ID = const(0xD4)  # (0b11010100)
@@ -105,7 +104,7 @@ _REG_ACCEL_ACT_DUR_A = const(0x3F)
 _LSM303ACCEL_MG_LSB = 16704.0  # magic!
 _GRAVITY_STANDARD = 9.80665  # Earth's gravity in m/s^2
 _SMOLLER_GRAVITY = 0.00980665
-# pylint:disable=too-few-public-methods
+# pylint: disable=too-few-public-methods
 class Rate:
     """Options for `data_rate`"""
 
@@ -138,7 +137,7 @@ class Range:
     RANGE_16G = const(3)
 
 
-# pylint: enable=bad-whitespace,too-few-public-methods
+# pylint: enable=too-few-public-methods
 
 
 class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
