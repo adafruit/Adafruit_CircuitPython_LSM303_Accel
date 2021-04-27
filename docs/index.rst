@@ -23,6 +23,10 @@ Table of Contents
 .. toctree::
     :caption: Tutorials
 
+    Triple-axis Accelerometer+Magnetometer (Compass) Board - LSM303 Learning Guide <https://learn.adafruit.com/lsm303-accelerometer-slash-compass-breakout>
+
+    FLORA Accelerometer/Compass Sensor - LSM303 Learning Guide <https://learn.adafruit.com/flora-accelerometer/>
+
 .. toctree::
     :caption: Related Products
 

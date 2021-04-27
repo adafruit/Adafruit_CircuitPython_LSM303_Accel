@@ -6,11 +6,10 @@
 import time
 from math import atan2, degrees
 import board
-import busio
 import adafruit_lsm303_accel
 
 
-i2c = busio.I2C(board.SCL, board.SDA)
+i2c = board.I2C()  # uses board.SCL and board.SDA
 sensor = adafruit_lsm303_accel.LSM303_Accel(i2c)
 
 
