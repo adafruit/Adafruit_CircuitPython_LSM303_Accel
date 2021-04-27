@@ -23,7 +23,7 @@ Implementation Notes
 
 **Software and Dependencies:**
 
-* Adafruit CircuitPython firmware for the ESP8622 and M0-based boards:
+* Adafruit CircuitPython firmware for the supported boards:
   https://circuitpython.org/downloads
 * Adafruit's Bus Device library:
   https://github.com/adafruit/Adafruit_CircuitPython_BusDevice
@@ -124,7 +124,36 @@ class Range:
 
 
 class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
-    """Driver for the LSM303's accelerometer."""
+    """Driver for the LSM303's accelerometer.
+
+    :param ~busio.I2C i2c: The I2C bus the device is connected to.
+
+
+    **Quickstart: Importing and using the device**
+
+        Here is an example of using the :class:`LSM303_Accel` class.
+        First you will need to import the libraries to use the sensor
+
+        .. code-block:: python
+
+            import board
+            import adafruit_lsm303_accel
+
+        Once this is done you can define your `board.I2C` object and define your sensor object
+
+        .. code-block:: python
+
+            i2c = board.I2C()  # uses board.SCL and board.SDA
+            sensor = adafruit_lsm303_accel.LSM303_Accel(i2c)
+
+        Now you have access to the :attr:`acceleration` attribute
+
+        .. code-block:: python
+
+            acc_x, acc_y, acc_z = sensor.acceleration
+
+
+    """
 
     # Class-level buffer for reading and writing data with the sensor.
     # This reduces memory allocations but means the code is not re-entrant or
@@ -141,22 +170,7 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
 
     _act_threshold = UnaryStruct(_REG_ACCEL_ACT_THS_A, "B")
     _act_duration = UnaryStruct(_REG_ACCEL_ACT_DUR_A, "B")
-    """
-    .. code-block:: python
 
-        import board
-        i2c = board.I2C()
-
-        import adafruit_lsm303_accel
-        accel = adafruit_lsm303_accel.LSM303_Accel(i2c)
-
-        accel._act_threshold = 20
-        accel._act_duration = 1
-        accel._int2_activity_enable = True
-
-        # toggle pins, defaults to False
-        accel._int_pin_active_low = True
-    """
     _data_rate = RWBits(4, _REG_ACCEL_CTRL_REG1_A, 4)
     _enable_xyz = RWBits(3, _REG_ACCEL_CTRL_REG1_A, 0)
     _raw_accel_data = StructArray(_REG_ACCEL_OUT_X_L_A, "<h", 3)
@@ -211,10 +225,10 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
         :param int threshold: A threshold for the tap detection.  The higher the value the less\
             sensitive the detection. This changes based on the accelerometer range.  Good values\
             are 5-10 for 16G, 10-20 for 8G, 20-40 for 4G, and 40-80 for 2G.
-        :param int time_limit: TIME_LIMIT register value (default 10).
-        :param int time_latency: TIME_LATENCY register value (default 20).
-        :param int time_window: TIME_WINDOW register value (default 255).
-        :param int click_cfg: CLICK_CFG register value.
+        :param int time_limit: TIME_LIMIT register value. Defaults to :const:`10`
+        :param int time_latency: TIME_LATENCY register value. Defaults to :const:`20`
+        :param int time_window: TIME_WINDOW register value. Defaults to :const:`255`
+        :param int tap_cfg: CLICK_CFG register value. Defaults to `None`
 
         """
 
@@ -250,7 +264,7 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
     def tapped(self):
         """
         True if a tap was detected recently. Whether its a single tap or double tap is
-        determined by the tap param on ``set_tap``. ``tapped`` may be True over
+        determined by the tap param on :meth:`set_tap`. :attr:`tapped` may be True over
         multiple reads even if only a single tap or single double tap occurred.
         """
         tap_src = self._tap_src
