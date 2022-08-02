@@ -14,6 +14,10 @@ Introduction
     :target: https://github.com/adafruit/Adafruit_CircuitPython_LSM303_Accel/actions/
     :alt: Build Status
 
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/psf/black
+    :alt: Code Style: Black
+
 Adafruit CircuitPython module for the LSM303's accelerometer
 
 Dependencies
