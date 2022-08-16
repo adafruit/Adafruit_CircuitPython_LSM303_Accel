@@ -12,7 +12,7 @@ requires = [
 [project]
 name = "adafruit-circuitpython-lsm303-accel"
 description = "CircuitPython library for LSM303 's 3-axis accelerometer."
-version = "0.0.0-auto.0"
+version = "0.0.0+auto.0"
 readme = "README.rst"
 authors = [
     {name = "Adafruit Industries", email = "circuitpython@adafruit.com"}

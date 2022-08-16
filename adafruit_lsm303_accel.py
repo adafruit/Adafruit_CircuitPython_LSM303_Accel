@@ -38,7 +38,7 @@ from adafruit_register.i2c_bit import RWBit, ROBit
 from adafruit_register.i2c_bits import RWBits
 from adafruit_register.i2c_struct_array import StructArray
 
-__version__ = "0.0.0-auto.0"
+__version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_LSM303_Accel.git"
 
 _ADDRESS_ACCEL = const(0x19)  # (0x32 >> 1)       // 0011001x
