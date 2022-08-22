@@ -108,7 +108,13 @@ class Mode:
     MODE_HIGH_RESOLUTION = const(1)
     MODE_LOW_POWER = const(2)
 
-
+class FifoMode:
+    """Options for fifo_mode"""
+    FIFO_MODE_BYPASS = const(0)
+    FIFO_MODE_FIFO = const(1)
+    FIFO_MODE_STREAM = const(2)
+    FIFO_MODE_STREAM_TO_FIFO = const(3)
+    FIFO_MODE_DISABLE = const(4)
 class Range:
     """Options for `range`"""
 
@@ -189,7 +195,10 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
     _tap_time_latency = UnaryStruct(_REG_ACCEL_TIME_LATENCY_A, "B")
     _tap_time_window = UnaryStruct(_REG_ACCEL_TIME_WINDOW_A, "B")
 
+    _fifo_enable = RWBit(_REG_ACCEL_CTRL_REG5_A, 6)
+    _fifo_mode = RWBits(2, _REG_ACCEL_FIFO_CTRL_REG_A, 6)                                               
     _BUFFER = bytearray(6)
+    _FIFO_BUFFER = bytearray(192)  # 32 samples * 6 bytes of data                                                             
 
     def __init__(self, i2c):
         self._accel_device = I2CDevice(i2c, _ADDRESS_ACCEL)
@@ -204,6 +213,8 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
         # time.sleep(0.01)  # takes 5ms
         self._cached_mode = 0
         self._cached_range = 0
+        self._cached_fifo_mode = 0                          
+
 
     def set_tap(
         self,
@@ -394,3 +405,39 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
         with device as i2c:
             buf[0] = address & 0xFF
             i2c.write_then_readinto(buf, buf, out_end=1, in_end=count)
+
+     @property
+    def fifo_mode(self):
+        return self._cached_fifo_mode
+
+    @fifo_mode.setter
+    def fifo_mode(self, value):
+        if value < 0 or value > 2:
+            raise AttributeError("fifo mode must be a 'FifoMode'")
+        elif value == 4:
+            self._fifo_enable = 0
+        else:
+            self._fifo_enable = 1
+            self._fifo_mode = value
+            self._cached_fifo_mode = value
+
+    def _raw_fifo(self):
+        self._read_bytes(
+            self._accel_device, _REG_ACCEL_OUT_X_L_A | 0x80, 192, self._FIFO_BUFFER
+        )
+        raw_data = []
+        for i in range(0,192,6):
+            raw_data.append(struct.unpack_from("<hhh", self._FIFO_BUFFER[i:i+6]))
+        return raw_data
+
+    def fifo_acceleration(self):
+        raw_fifo_data = self._raw_fifo
+        scaled_fifo = []
+        for sample in raw_fifo_data():
+            x = self._scale_data(sample[0])
+            y = self._scale_data(sample[1])
+            z = self._scale_data(sample[2])
+
+            scaled_fifo.append((x, y, z))
+
+        return scaled_fifo
