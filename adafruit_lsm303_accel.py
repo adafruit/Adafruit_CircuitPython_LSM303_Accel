@@ -413,13 +413,14 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
 
     @property
     def fifo_mode(self):
+        """Sets the fifo mode of the sensor. The mode must be a `FifoMode`."""
         return self._cached_fifo_mode
 
     @fifo_mode.setter
     def fifo_mode(self, value):
         if value < 0 or value > 2:
             raise AttributeError("fifo mode must be a 'FifoMode'")
-        elif value == 4:
+        if value == 4:
             self._fifo_enable = 0
         else:
             self._fifo_enable = 1
@@ -436,9 +437,11 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
         return raw_data
 
     def fifo_acceleration(self):
-        raw_fifo_data = self._raw_fifo
+        """The acceleration values stored in the FIFO Buffer.
+           A List of 3-tuple of X, Y, Z axis values in m/s^2 squared that are signed floats."""
+        raw_fifo_data = self._raw_fifo()
         scaled_fifo = []
-        for sample in raw_fifo_data():
+        for sample in raw_fifo_data:
             x = self._scale_data(sample[0])
             y = self._scale_data(sample[1])
             z = self._scale_data(sample[2])
