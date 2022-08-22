@@ -31,12 +31,12 @@ Implementation Notes
 
 import struct
 
-from micropython import const
 from adafruit_bus_device.i2c_device import I2CDevice
-from adafruit_register.i2c_struct import UnaryStruct
 from adafruit_register.i2c_bit import RWBit, ROBit
 from adafruit_register.i2c_bits import RWBits
+from adafruit_register.i2c_struct import UnaryStruct
 from adafruit_register.i2c_struct_array import StructArray
+from micropython import const
 
 __version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_LSM303_Accel.git"
@@ -85,6 +85,8 @@ _REG_ACCEL_ACT_DUR_A = const(0x3F)
 _LSM303ACCEL_MG_LSB = 16704.0  # magic!
 _GRAVITY_STANDARD = 9.80665  # Earth's gravity in m/s^2
 _SMOLLER_GRAVITY = 0.00980665
+
+
 # pylint: disable=too-few-public-methods
 class Rate:
     """Options for `data_rate`"""
@@ -108,6 +110,7 @@ class Mode:
     MODE_HIGH_RESOLUTION = const(1)
     MODE_LOW_POWER = const(2)
 
+
 class FifoMode:
     """Options for fifo_mode"""
     FIFO_MODE_BYPASS = const(0)
@@ -115,6 +118,8 @@ class FifoMode:
     FIFO_MODE_STREAM = const(2)
     FIFO_MODE_STREAM_TO_FIFO = const(3)
     FIFO_MODE_DISABLE = const(4)
+
+
 class Range:
     """Options for `range`"""
 
@@ -196,9 +201,10 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
     _tap_time_window = UnaryStruct(_REG_ACCEL_TIME_WINDOW_A, "B")
 
     _fifo_enable = RWBit(_REG_ACCEL_CTRL_REG5_A, 6)
-    _fifo_mode = RWBits(2, _REG_ACCEL_FIFO_CTRL_REG_A, 6)                                               
+    _fifo_mode = RWBits(2, _REG_ACCEL_FIFO_CTRL_REG_A, 6)
     _BUFFER = bytearray(6)
-    _FIFO_BUFFER = bytearray(192)  # 32 samples * 6 bytes of data                                                             
+    _FIFO_BUFFER = bytearray(
+        192)  # 32 samples * 6 bytes of data
 
     def __init__(self, i2c):
         self._accel_device = I2CDevice(i2c, _ADDRESS_ACCEL)
@@ -213,18 +219,17 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
         # time.sleep(0.01)  # takes 5ms
         self._cached_mode = 0
         self._cached_range = 0
-        self._cached_fifo_mode = 0                          
-
+        self._cached_fifo_mode = 0
 
     def set_tap(
-        self,
-        tap,
-        threshold,
-        *,
-        time_limit=10,
-        time_latency=20,
-        time_window=255,
-        tap_cfg=None
+            self,
+            tap,
+            threshold,
+            *,
+            time_limit=10,
+            time_latency=20,
+            time_window=255,
+            tap_cfg=None
     ):
         """
         The tap detection parameters.
@@ -406,7 +411,7 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
             buf[0] = address & 0xFF
             i2c.write_then_readinto(buf, buf, out_end=1, in_end=count)
 
-     @property
+    @property
     def fifo_mode(self):
         return self._cached_fifo_mode
 
@@ -426,8 +431,8 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
             self._accel_device, _REG_ACCEL_OUT_X_L_A | 0x80, 192, self._FIFO_BUFFER
         )
         raw_data = []
-        for i in range(0,192,6):
-            raw_data.append(struct.unpack_from("<hhh", self._FIFO_BUFFER[i:i+6]))
+        for i in range(0, 192, 6):
+            raw_data.append(struct.unpack_from("<hhh", self._FIFO_BUFFER[i:i + 6]))
         return raw_data
 
     def fifo_acceleration(self):
