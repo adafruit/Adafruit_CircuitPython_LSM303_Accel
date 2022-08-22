@@ -113,6 +113,7 @@ class Mode:
 
 class FifoMode:
     """Options for fifo_mode"""
+
     FIFO_MODE_BYPASS = const(0)
     FIFO_MODE_FIFO = const(1)
     FIFO_MODE_STREAM = const(2)
@@ -203,8 +204,7 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
     _fifo_enable = RWBit(_REG_ACCEL_CTRL_REG5_A, 6)
     _fifo_mode = RWBits(2, _REG_ACCEL_FIFO_CTRL_REG_A, 6)
     _BUFFER = bytearray(6)
-    _FIFO_BUFFER = bytearray(
-        192)  # 32 samples * 6 bytes of data
+    _FIFO_BUFFER = bytearray(192)  # 32 samples * 6 bytes of data
 
     def __init__(self, i2c):
         self._accel_device = I2CDevice(i2c, _ADDRESS_ACCEL)
@@ -222,14 +222,14 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
         self._cached_fifo_mode = 0
 
     def set_tap(
-            self,
-            tap,
-            threshold,
-            *,
-            time_limit=10,
-            time_latency=20,
-            time_window=255,
-            tap_cfg=None
+        self,
+        tap,
+        threshold,
+        *,
+        time_limit=10,
+        time_latency=20,
+        time_window=255,
+        tap_cfg=None
     ):
         """
         The tap detection parameters.
@@ -433,12 +433,12 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
         )
         raw_data = []
         for i in range(0, 192, 6):
-            raw_data.append(struct.unpack_from("<hhh", self._FIFO_BUFFER[i:i + 6]))
+            raw_data.append(struct.unpack_from("<hhh", self._FIFO_BUFFER[i : i + 6]))
         return raw_data
 
     def fifo_acceleration(self):
         """The acceleration values stored in the FIFO Buffer.
-           A List of 3-tuple of X, Y, Z axis values in m/s^2 squared that are signed floats."""
+        A List of 3-tuple of X, Y, Z axis values in m/s^2 squared that are signed floats."""
         raw_fifo_data = self._raw_fifo()
         scaled_fifo = []
         for sample in raw_fifo_data:
