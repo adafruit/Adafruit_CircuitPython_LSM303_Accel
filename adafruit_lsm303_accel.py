@@ -39,7 +39,7 @@ from adafruit_register.i2c_bits import RWBits
 from adafruit_register.i2c_struct_array import StructArray
 
 try:
-    from typing import Any, Optional, Tuple
+    from typing import Optional, Tuple
     from typing_extensions import Literal
     from busio import I2C
 except ImportError:
@@ -276,7 +276,7 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
         return tap_src & 0b1000000 > 0
 
     @property
-    def _raw_acceleration(self) -> Tuple[Any]:
+    def _raw_acceleration(self) -> Tuple[int, int, int]:
         self._read_bytes(
             self._accel_device, _REG_ACCEL_OUT_X_L_A | 0x80, 6, self._BUFFER
         )
@@ -340,8 +340,8 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
 
         if lsb is -1:
             raise AttributeError(
-                f"""'impossible' range or mode detected:
-                range: {self._cached_range} mode: {self._cached_mode}"""
+                "'impossible' range or mode detected: "
+                f"range: {self._cached_range} mode: {self._cached_mode}"
             )
         return (lsb, shift)
 
