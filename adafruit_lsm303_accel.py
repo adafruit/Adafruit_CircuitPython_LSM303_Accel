@@ -38,6 +38,13 @@ from adafruit_register.i2c_bit import RWBit, ROBit
 from adafruit_register.i2c_bits import RWBits
 from adafruit_register.i2c_struct_array import StructArray
 
+try:
+    from typing import Optional, Tuple
+    from typing_extensions import Literal
+    from busio import I2C
+except ImportError:
+    pass
+
 __version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_LSM303_Accel.git"
 
@@ -191,7 +198,7 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
 
     _BUFFER = bytearray(6)
 
-    def __init__(self, i2c):
+    def __init__(self, i2c: I2C) -> None:
         self._accel_device = I2CDevice(i2c, _ADDRESS_ACCEL)
         self.i2c_device = self._accel_device
         self._data_rate = 2
@@ -207,14 +214,14 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
 
     def set_tap(
         self,
-        tap,
-        threshold,
+        tap: Literal[0, 1, 2],
+        threshold: int,
         *,
-        time_limit=10,
-        time_latency=20,
-        time_window=255,
-        tap_cfg=None
-    ):
+        time_limit: int = 10,
+        time_latency: int = 20,
+        time_window: int = 255,
+        tap_cfg: Optional[int] = None,
+    ) -> None:
         """
         The tap detection parameters.
 
@@ -259,7 +266,7 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
         self._tap_time_window = time_window
 
     @property
-    def tapped(self):
+    def tapped(self) -> bool:
         """
         True if a tap was detected recently. Whether its a single tap or double tap is
         determined by the tap param on :meth:`set_tap`. :attr:`tapped` may be True over
@@ -269,14 +276,14 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
         return tap_src & 0b1000000 > 0
 
     @property
-    def _raw_acceleration(self):
+    def _raw_acceleration(self) -> Tuple[int, int, int]:
         self._read_bytes(
             self._accel_device, _REG_ACCEL_OUT_X_L_A | 0x80, 6, self._BUFFER
         )
         return struct.unpack_from("<hhh", self._BUFFER[0:6])
 
     @property
-    def acceleration(self):
+    def acceleration(self) -> Tuple[float, float, float]:
         """The measured accelerometer sensor values.
         A 3-tuple of X, Y, Z axis values in m/s^2 squared that are signed floats.
         """
@@ -289,12 +296,12 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
 
         return (x, y, z)
 
-    def _scale_data(self, raw_measurement):
+    def _scale_data(self, raw_measurement: int) -> float:
         lsb, shift = self._lsb_shift()
 
         return (raw_measurement >> shift) * lsb * _SMOLLER_GRAVITY
 
-    def _lsb_shift(self):  # pylint:disable=too-many-branches
+    def _lsb_shift(self) -> Tuple[float, int]:  # pylint:disable=too-many-branches
         # the bit depth of the data depends on the mode, and the lsb value
         # depends on the mode and range
         lsb = -1  # the default, normal mode @ 2G
@@ -333,64 +340,66 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
 
         if lsb is -1:
             raise AttributeError(
-                "'impossible' range or mode detected: range: %d mode: %d"
-                % (self._cached_range, self._cached_mode)
+                "'impossible' range or mode detected: "
+                f"range: {self._cached_range} mode: {self._cached_mode}"
             )
         return (lsb, shift)
 
     @property
-    def data_rate(self):
+    def data_rate(self) -> int:
         """Select the rate at which the sensor takes measurements. Must be a `Rate`"""
         return self._data_rate
 
     @data_rate.setter
-    def data_rate(self, value):
+    def data_rate(self, value: int) -> None:
         if value < 0 or value > 9:
             raise AttributeError("data_rate must be a `Rate`")
 
         self._data_rate = value
 
     @property
-    def range(self):
+    def range(self) -> int:
         """Adjusts the range of values that the sensor can measure, from +- 2G to +-16G
         Note that larger ranges will be less accurate. Must be a `Range`"""
         return self._cached_range
 
     @range.setter
-    def range(self, value):
+    def range(self, value: int) -> None:
         if value < 0 or value > 3:
             raise AttributeError("range must be a `Range`")
         self._range = value
         self._cached_range = value
 
     @property
-    def mode(self):
+    def mode(self) -> int:
         """Sets the power mode of the sensor. The mode must be a `Mode`. Note that the
         mode and range will both affect the accuracy of the sensor"""
         return self._cached_mode
 
     @mode.setter
-    def mode(self, value):
+    def mode(self, value: int) -> None:
         if value < 0 or value > 2:
             raise AttributeError("mode must be a `Mode`")
         self._high_resolution = value & 0b01
         self._low_power = (value & 0b10) >> 1
         self._cached_mode = value
 
-    def _read_u8(self, device, address):
+    def _read_u8(self, device: I2CDevice, address: int) -> int:
         with device as i2c:
             self._BUFFER[0] = address & 0xFF
             i2c.write_then_readinto(self._BUFFER, self._BUFFER, out_end=1, in_end=1)
         return self._BUFFER[0]
 
-    def _write_u8(self, device, address, val):
+    def _write_u8(self, device: I2CDevice, address: int, val: int) -> None:
         with device as i2c:
             self._BUFFER[0] = address & 0xFF
             self._BUFFER[1] = val & 0xFF
             i2c.write(self._BUFFER, end=2)
 
     @staticmethod
-    def _read_bytes(device, address, count, buf):
+    def _read_bytes(
+        device: I2CDevice, address: int, count: int, buf: bytearray
+    ) -> None:
         with device as i2c:
             buf[0] = address & 0xFF
             i2c.write_then_readinto(buf, buf, out_end=1, in_end=count)
