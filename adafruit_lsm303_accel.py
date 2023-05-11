@@ -92,6 +92,8 @@ _REG_ACCEL_ACT_DUR_A = const(0x3F)
 _LSM303ACCEL_MG_LSB = 16704.0  # magic!
 _GRAVITY_STANDARD = 9.80665  # Earth's gravity in m/s^2
 _SMOLLER_GRAVITY = 0.00980665
+
+
 # pylint: disable=too-few-public-methods
 class Rate:
     """Options for `data_rate`"""
