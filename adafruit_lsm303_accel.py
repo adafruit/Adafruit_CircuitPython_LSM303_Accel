@@ -31,17 +31,18 @@ Implementation Notes
 
 import struct
 
-from micropython import const
 from adafruit_bus_device.i2c_device import I2CDevice
-from adafruit_register.i2c_struct import UnaryStruct
-from adafruit_register.i2c_bit import RWBit, ROBit
+from adafruit_register.i2c_bit import ROBit, RWBit
 from adafruit_register.i2c_bits import RWBits
+from adafruit_register.i2c_struct import UnaryStruct
 from adafruit_register.i2c_struct_array import StructArray
+from micropython import const
 
 try:
     from typing import Optional, Tuple
-    from typing_extensions import Literal
+
     from busio import I2C
+    from typing_extensions import Literal
 except ImportError:
     pass
 
@@ -94,7 +95,6 @@ _GRAVITY_STANDARD = 9.80665  # Earth's gravity in m/s^2
 _SMOLLER_GRAVITY = 0.00980665
 
 
-# pylint: disable=too-few-public-methods
 class Rate:
     """Options for `data_rate`"""
 
@@ -127,10 +127,7 @@ class Range:
     RANGE_16G = const(3)
 
 
-# pylint: enable=too-few-public-methods
-
-
-class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
+class LSM303_Accel:
     """Driver for the LSM303's accelerometer.
 
     :param ~busio.I2C i2c: The I2C bus the device is connected to.
@@ -240,9 +237,7 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
         """
 
         if (tap < 0 or tap > 2) and tap_cfg is None:
-            raise ValueError(
-                "Tap must be 0 (disabled), 1 (single tap), or 2 (double tap)!"
-            )
+            raise ValueError("Tap must be 0 (disabled), 1 (single tap), or 2 (double tap)!")
         if threshold > 127 or threshold < 0:
             raise ValueError("Threshold out of range (0-127)")
 
@@ -279,9 +274,7 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
 
     @property
     def _raw_acceleration(self) -> Tuple[int, int, int]:
-        self._read_bytes(
-            self._accel_device, _REG_ACCEL_OUT_X_L_A | 0x80, 6, self._BUFFER
-        )
+        self._read_bytes(self._accel_device, _REG_ACCEL_OUT_X_L_A | 0x80, 6, self._BUFFER)
         return struct.unpack_from("<hhh", self._BUFFER[0:6])
 
     @property
@@ -303,7 +296,7 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
 
         return (raw_measurement >> shift) * lsb * _SMOLLER_GRAVITY
 
-    def _lsb_shift(self) -> Tuple[float, int]:  # pylint:disable=too-many-branches
+    def _lsb_shift(self) -> Tuple[float, int]:
         # the bit depth of the data depends on the mode, and the lsb value
         # depends on the mode and range
         lsb = -1  # the default, normal mode @ 2G
@@ -399,9 +392,7 @@ class LSM303_Accel:  # pylint:disable=too-many-instance-attributes
             i2c.write(self._BUFFER, end=2)
 
     @staticmethod
-    def _read_bytes(
-        device: I2CDevice, address: int, count: int, buf: bytearray
-    ) -> None:
+    def _read_bytes(device: I2CDevice, address: int, count: int, buf: bytearray) -> None:
         with device as i2c:
             buf[0] = address & 0xFF
             i2c.write_then_readinto(buf, buf, out_end=1, in_end=count)
